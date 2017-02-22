@@ -1,0 +1,16 @@
+{
+  "name": "weplay-rom",
+  "version": "0.0.1",
+  "description": "",
+  "dependencies": {
+    "node-uuid": "^1.4.7",
+    "redis": "2.6.2",
+    "weplay-common": "iromu/weplay-common"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=7.0.0"
+  }
+}
