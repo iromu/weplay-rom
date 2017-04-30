@@ -4,6 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const redis = require('weplay-common').redis();
 const EventBus = require('weplay-common').EventBus;
+const DEFAULT_ROM_NAME = 'default.gbc';
 
 // Asynchronous function to read folders and files recursively
 function recursiveloop(dir, done) {
@@ -42,24 +43,34 @@ class RomStoreService {
         this.statePath = join('data', 'state');
 
         const listeners = {
-            'default:hash': (socket, request)=> {
-                this.logger.info('< request', {socket: socket.id, request: request});
+            'defaulthash': (socket, request)=> {
+                this.logger.info('RomStoreService < default:hash', {socket: socket.id, request: request});
                 var romSelection = this.getDefaultRom();
 
-                this.logger.info('> hash', {socket: socket.id, hash: romSelection.hash});
-                socket.emit('hash', {name: romSelection.name, hash: romSelection.hash});
+                this.logger.info('default:hash > hash', {
+                    socket: socket.id,
+                    name: romSelection.name,
+                    hash: romSelection.hash
+                });
+                socket.emit('hash', {name: romSelection.name, defaultRom: true, hash: romSelection.hash});
+            },
+            'query': (socket, request)=> {
+                this.logger.info('RomStoreService < query', {socket: socket.id, request: request});
+                var romSelection = this.romsMap.filter(r=>r.hash === request)[0];
+                socket.emit('response', {name: romSelection.name, hash: romSelection.hash, emu: romSelection.emu});
+
             },
             'request': (socket, request)=> {
-                this.logger.info('< request', {socket: socket.id, request: request});
+                this.logger.info('RomStoreService < request', {socket: socket.id, request: request});
                 var romSelection = this.getRomSelection(socket.id);
                 romSelection.emu = socket.id;
                 socket.hash = romSelection.hash;
 
-                this.logger.info(`> emu:${socket.id}:rom:hash`, romSelection.hash);
+                this.logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash);
                 socket.emit('hash', {name: romSelection.name, hash: romSelection.hash});
 
                 if (romSelection.statePacked) {
-                    this.logger.info(`> emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked));
+                    this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked));
                     socket.emit('state', romSelection.statePacked);
                 }
                 else {
@@ -67,18 +78,18 @@ class RomStoreService {
                         if (err) {
                             logger.error(err);
                         }
-                        this.logger.info(`> emu:${socket.id}:rom:data`);
+                        this.logger.info(`RomStoreService > emu:${socket.id}:rom:data`);
                         socket.emit('data', romData);
                     });
                 }
             },
             'state': (socket, state)=> {
                 if (socket.hash) {
-                    this.logger.info('< state', socket.hash, this.digest(state));
+                    this.logger.info('RomStoreService < state', socket.hash, this.digest(state));
                     this.romsMap.filter(r=>r.hash === socket.hash && r.emu === socket.id)[0].statePacked = state;
                 } else {
 
-                    this.logger.error('< state (no hash)');
+                    this.logger.error('RomStoreService < state (no hash)');
                 }
             },
             'disconnect': (socket)=> {
@@ -113,11 +124,11 @@ class RomStoreService {
     }
 
     getDefaultRom() {
-        return this.romsMap.filter(r=>r.name !== 'default')[0];
+        return this.romsMap.filter(r=>r.name === DEFAULT_ROM_NAME)[0];
     }
 
     getRomSelection(emuId) {
-        var romSelection = this.romsMap.filter(r=>r.name === 'default' && (r.emu === null || r.emu === emuId))[0];
+        var romSelection = this.romsMap.filter(r=>r.name === DEFAULT_ROM_NAME && (r.emu === null || r.emu === emuId))[0];
         if (!romSelection)  romSelection = this.romsMap.filter(r=>r.emu === null || r.emu === emuId)[0];
         return romSelection;
     }
