@@ -58,7 +58,25 @@ class RomStoreService {
         this.logger.info('RomStoreService < query', {socket: socket.id, request: request})
         var romSelection = this.romsMap.filter(r => r.hash === request)[0]
         socket.emit('response', {name: romSelection.name, hash: romSelection.hash, emu: romSelection.emu})
+        romSelection.emu = socket.id
+        socket.hash = romSelection.hash
 
+
+        if (romSelection.statePacked) {
+          this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked))
+          socket.emit('state', romSelection.statePacked)
+        } else {
+          fs.readFile(romSelection.path, (err, romData) => {
+            if (err) {
+              this.logger.error(err)
+            }
+            this.logger.info(`RomStoreService > emu:${socket.id}:rom:data`)
+            socket.emit('data', romData)
+          })
+        }
+
+        this.logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
+        socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
       },
       'request': (socket, request) => {
         this.logger.info('RomStoreService < request', {socket: socket.id, request: request})
@@ -66,22 +84,22 @@ class RomStoreService {
         romSelection.emu = socket.id
         socket.hash = romSelection.hash
 
-        this.logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
-        socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
 
         if (romSelection.statePacked) {
           this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked))
           socket.emit('state', romSelection.statePacked)
-        }
-        else {
+        } else {
           fs.readFile(romSelection.path, (err, romData) => {
             if (err) {
-              logger.error(err)
+              this.logger.error(err)
             }
             this.logger.info(`RomStoreService > emu:${socket.id}:rom:data`)
             socket.emit('data', romData)
           })
         }
+
+        this.logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
+        socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
       },
       'state': (socket, state) => {
         if (socket.hash) {

@@ -3,9 +3,10 @@
   "version": "0.0.1",
   "description": "",
   "dependencies": {
+    "lodash": "^4.17.4",
     "node-uuid": "^1.4.7",
     "redis": "2.6.2",
-    "weplay-common": "iromu/weplay-common"
+    "weplay-common": "iromu/weplay-common#develop"
   },
   "scripts": {
     "start": "node index.js",
