@@ -129,11 +129,11 @@ class RomStoreService {
         discoveryUrl: discoveryUrl,
         uuid: this.uuid
       })
-      this.init()
+      this.onConnect()
     })
   }
 
-  init() {
+  onConnect() {
     this.loadRoms()
   }
 
@@ -153,6 +153,7 @@ class RomStoreService {
   }
 
   loadRoms() {
+    this.romsMap = []
     recursiveloop(this.romDir, (err, roms) => {
       if (err) {
         this.logger.error(err)
@@ -176,7 +177,6 @@ class RomStoreService {
           this.romsMap.push(romInfo)
         }
       })
-
     })
   }
 
