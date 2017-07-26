@@ -104,9 +104,13 @@ class RomStoreService {
       'state': (socket, state) => {
         if (socket.hash) {
           this.logger.info('RomStoreService < state', socket.hash, this.digest(state))
-          this.romsMap.filter(r => r.hash === socket.hash && r.emu === socket.id)[0].statePacked = state
+          const filter = this.romsMap.filter(r => r.hash === socket.hash && r.emu === socket.id)[0]
+          if (filter !== undefined) {
+            filter.statePacked = state
+          } else {
+            this.logger.error('RomStoreService < state (no found)')
+          }
         } else {
-
           this.logger.error('RomStoreService < state (no hash)')
         }
       },
