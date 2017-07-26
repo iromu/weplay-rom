@@ -2,23 +2,24 @@ const join = require('path').join
 const path = require('path')
 const fs = require('fs')
 const crypto = require('crypto')
-const redis = require('weplay-common').redis()
 const EventBus = require('weplay-common').EventBus
 const DEFAULT_ROM_NAME = 'default.gbc'
 
 // Asynchronous function to read folders and files recursively
 function recursiveloop(dir, done) {
   var results = []
-  fs.readdir(dir, function (err, list) {
+  fs.readdir(dir, (err, list) => {
     if (err) return done(err)
     var i = 0;
     (function next() {
       var file = list[i++]
       if (!file) return done(null, results)
       file = dir + '/' + file
-      fs.stat(file, function (err, stat) {
+// eslint-disable-next-line handle-callback-err
+      fs.stat(file, (err, stat) => {
         if (stat && stat.isDirectory()) {
-          recursiveloop(file, function (err, res) {
+// eslint-disable-next-line handle-callback-err
+          recursiveloop(file, (err, res) => {
             results = results.concat(res)
             next()
           })
@@ -60,7 +61,6 @@ class RomStoreService {
         socket.emit('response', {name: romSelection.name, hash: romSelection.hash, emu: romSelection.emu})
         romSelection.emu = socket.id
         socket.hash = romSelection.hash
-
 
         if (romSelection.statePacked) {
           this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked))
@@ -168,15 +168,13 @@ class RomStoreService {
           var romInfo = {name: name, path: rom, hash: hash, emu: null}
           if (romInfo.name === 'default.gbc') {
             this.defaultRomHash = hash
-            redis.set('weplay:rom:default', this.defaultRomHash)
-            redis.set('weplay:rom:0', this.defaultRomHash)
-          } else {
-            redis.set(`weplay:rom:${count}`, hash)
           }
           count++
           this.romsMap.push(romInfo)
         }
       })
+      this.logger.info('Roms loaded', this.romsMap)
+      this.logger.info('Default Rom', this.defaultRomHash)
     })
   }
 
