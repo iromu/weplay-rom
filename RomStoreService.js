@@ -33,7 +33,6 @@ function recursiveloop(dir, done) {
 }
 
 class RomStoreService {
-
   constructor(discoveryUrl, discoveryPort, statusPort) {
     this.uuid = require('node-uuid').v4()
     this.logger = require('weplay-common').logger('weplay-romstore', this.uuid)
@@ -47,13 +46,22 @@ class RomStoreService {
       'defaulthash': (socket, request) => {
         this.logger.info('RomStoreService < default:hash', {socket: socket.id, request: request})
         var romSelection = this.getDefaultRom()
-
-        this.logger.info('default:hash > hash', {
-          socket: socket.id,
-          name: romSelection.name,
-          hash: romSelection.hash
+        if (romSelection !== undefined) {
+          this.logger.info('default:hash > hash', {
+            socket: socket.id,
+            name: romSelection.name,
+            hash: romSelection.hash
+          })
+          socket.emit('hash', {name: romSelection.name, defaultRom: true, hash: romSelection.hash})
+        }
+      },
+      'list': (socket, request) => {
+        this.logger.info('RomStoreService < list', {socket: socket.id, request: request})
+        this.romsMap.forEach((romMap) => {
+          const info = {idx: romMap.idx, name: romMap.name, hash: romMap.hash}
+          this.logger.info('RomStoreService < info', info)
+          socket.emit('data', info)
         })
-        socket.emit('hash', {name: romSelection.name, defaultRom: true, hash: romSelection.hash})
       },
       'query': (socket, request) => {
         this.logger.info('RomStoreService < query', {socket: socket.id, request: request})
@@ -162,7 +170,6 @@ class RomStoreService {
       if (err) {
         this.logger.error(err)
       }
-      var count = 1
       roms.forEach((rom) => {
         var name = path.basename(rom)
         var ext = path.extname(rom)
@@ -172,10 +179,16 @@ class RomStoreService {
           var romInfo = {name: name, path: rom, hash: hash, emu: null}
           if (romInfo.name === 'default.gbc') {
             this.defaultRomHash = hash
+            romInfo.default = true
           }
-          count++
           this.romsMap.push(romInfo)
         }
+      })
+
+      var idx = 0
+      this.romsMap.sort((a, b) => a.default || b.default || a.name > b.name)
+      this.romsMap.forEach((rom) => {
+        rom.idx = idx++
       })
       this.logger.info('Roms loaded', this.romsMap)
       this.logger.info('Default Rom', this.defaultRomHash)
