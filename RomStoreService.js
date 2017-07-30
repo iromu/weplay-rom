@@ -36,6 +36,7 @@ class RomStoreService {
   constructor(discoveryUrl, discoveryPort, statusPort) {
     this.uuid = require('node-uuid').v4()
     this.logger = require('weplay-common').logger('weplay-romstore', this.uuid)
+    this.hashes = {}
     this.romsMap = []
     this.defaultRomHash = undefined
     this.romPath = join('data', 'rom')
@@ -43,8 +44,20 @@ class RomStoreService {
     this.statePath = join('data', 'state')
 
     const listeners = {
+      'free': (socket, request) => {
+        this.logger.info('RomStoreService < free', {socket: socket.id, hash: socket.hash, request: request})
+        for (var property in this.hashes) {
+          if (this.hashes.hasOwnProperty(property)) {
+            if (this.hashes[property] === socket.id) {
+              this.romsMap.filter(r => r.hash === property)[0].emu = null
+              delete this.hashes[property]
+            }
+          }
+        }
+        socket.hash = null
+      },
       'defaulthash': (socket, request) => {
-        this.logger.info('RomStoreService < default:hash', {socket: socket.id, request: request})
+        this.logger.info('RomStoreService < default:hash', {socket: socket.id, hash: socket.hash, request: request})
         var romSelection = this.getDefaultRom()
         if (romSelection !== undefined) {
           this.logger.info('default:hash > hash', {
@@ -56,7 +69,7 @@ class RomStoreService {
         }
       },
       'list': (socket, request) => {
-        this.logger.info('RomStoreService < list', {socket: socket.id, request: request})
+        this.logger.info('RomStoreService < list', {socket: socket.id, hash: socket.hash, request: request})
         this.romsMap.forEach((romMap) => {
           const info = {idx: romMap.idx, name: romMap.name, hash: romMap.hash}
           this.logger.info('RomStoreService < info', info)
@@ -64,11 +77,12 @@ class RomStoreService {
         })
       },
       'query': (socket, request) => {
-        this.logger.info('RomStoreService < query', {socket: socket.id, request: request})
+        this.logger.info('RomStoreService < query', {socket: socket.id, hash: socket.hash, request: request})
         var romSelection = this.romsMap.filter(r => r.hash === request)[0]
         socket.emit('response', {name: romSelection.name, hash: romSelection.hash, emu: romSelection.emu})
         romSelection.emu = socket.id
         socket.hash = romSelection.hash
+        this.hashes[romSelection.hash] = socket.id
 
         if (romSelection.statePacked) {
           this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked))
@@ -87,11 +101,11 @@ class RomStoreService {
         socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
       },
       'request': (socket, request) => {
-        this.logger.info('RomStoreService < request', {socket: socket.id, request: request})
+        this.logger.info('RomStoreService < request', {socket: socket.id, hash: socket.hash, request: request})
         var romSelection = this.getRomSelection(socket.id)
         romSelection.emu = socket.id
         socket.hash = romSelection.hash
-
+        this.hashes[romSelection.hash] = socket.id
 
         if (romSelection.statePacked) {
           this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked))
@@ -111,7 +125,7 @@ class RomStoreService {
       },
       'state': (socket, state) => {
         if (socket.hash) {
-          this.logger.info('RomStoreService < state', socket.hash, this.digest(state))
+          this.logger.info('RomStoreService < state', {socket: socket.id, hash: socket.hash, state: this.digest(state)})
           const filter = this.romsMap.filter(r => r.hash === socket.hash && r.emu === socket.id)[0]
           if (filter !== undefined) {
             filter.statePacked = state
@@ -123,9 +137,19 @@ class RomStoreService {
         }
       },
       'disconnect': (socket) => {
+        this.logger.info('RomStoreService < disconnect', {socket: socket.id, hash: socket.hash})
+        for (var property in this.hashes) {
+          if (this.hashes.hasOwnProperty(property)) {
+            if (this.hashes[property] === socket.id) {
+              this.romsMap.filter(r => r.hash === property)[0].emu = null
+              delete this.hashes[property]
+            }
+          }
+        }
         if (socket.hash) {
           this.romsMap.filter(r => r.hash === socket.hash)[0].emu = null
         }
+        socket.hash = null
       }
     }
 
@@ -180,16 +204,20 @@ class RomStoreService {
           if (romInfo.name === 'default.gbc') {
             this.defaultRomHash = hash
             romInfo.default = true
+            romInfo.idx = 0
           }
           this.romsMap.push(romInfo)
         }
       })
 
-      var idx = 0
-      this.romsMap.sort((a, b) => a.default || b.default || a.name > b.name)
+      var idx = 1
+      this.romsMap.sort((a, b) => a.name > b.name)
       this.romsMap.forEach((rom) => {
-        rom.idx = idx++
+        if (rom.name !== 'default.gbc') {
+          rom.idx = idx++
+        }
       })
+      this.romsMap.sort((a, b) => a.idx > b.idx)
       this.logger.info('Roms loaded', this.romsMap)
       this.logger.info('Default Rom', this.defaultRomHash)
     })
