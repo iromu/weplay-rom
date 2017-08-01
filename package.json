@@ -13,6 +13,6 @@
     "lint": "./node_modules/weplay-common/node_modules/.bin/eslint report ."
   },
   "engines": {
-    "node": ">=7.0.0"
+    "node": ">=8.0.0"
   }
 }

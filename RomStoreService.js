@@ -44,8 +44,13 @@ class RomStoreService {
     this.statePath = join('data', 'state')
 
     const listeners = {
+      /** Frees current connection */
       'free': (socket, request) => {
-        this.logger.info('RomStoreService < free', {socket: socket.id, hash: socket.hash, request: request})
+        if (!request || !socket.hash) {
+          this.logger.error('RomStoreService < free', {socket: socket.id, hash: socket.hash, request: request})
+        } else {
+          this.logger.info('RomStoreService < free', {socket: socket.id, hash: socket.hash, request: request})
+        }
         for (var property in this.hashes) {
           if (this.hashes.hasOwnProperty(property)) {
             if (this.hashes[property] === socket.id) {
