@@ -42,6 +42,7 @@ class RomStoreService {
     this.romPath = join('data', 'rom')
     this.romDir = join(process.cwd(), this.romPath)
     this.statePath = join('data', 'state')
+    this.stateDir = join(process.cwd(), this.statePath)
 
     const listeners = {
       /** Frees current connection */
@@ -115,12 +116,16 @@ class RomStoreService {
         if (romSelection.statePacked) {
           this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked))
           socket.emit('state', romSelection.statePacked)
+        } else if (romSelection.romData) {
+          this.logger.info(`RomStoreService > emu:${socket.id}:rom:data`)
+          socket.emit('data', romSelection.romData)
         } else {
           fs.readFile(romSelection.path, (err, romData) => {
             if (err) {
               this.logger.error(err)
             }
             this.logger.info(`RomStoreService > emu:${socket.id}:rom:data`)
+            romSelection.data = romData
             socket.emit('data', romData)
           })
         }
@@ -128,12 +133,14 @@ class RomStoreService {
         this.logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
         socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
       },
-      'state': (socket, state) => {
+      'state': (socket, statePacked) => {
         if (socket.hash) {
-          this.logger.info('RomStoreService < state', {socket: socket.id, hash: socket.hash, state: this.digest(state)})
+          this.logger.info('RomStoreService < state', {socket: socket.id, hash: socket.hash})
+          // Only the active emu can update the state
           const filter = this.romsMap.filter(r => r.hash === socket.hash && r.emu === socket.id)[0]
           if (filter !== undefined) {
-            filter.statePacked = state
+            filter.statePacked = statePacked
+            delete filter.rom
           } else {
             this.logger.error('RomStoreService < state (no found)')
           }
@@ -211,6 +218,18 @@ class RomStoreService {
             romInfo.default = true
             romInfo.idx = 0
           }
+          // fs.readFile(romInfo.path, (err, romData) => {
+          //   if (err) {
+          //     this.logger.error(err)
+          //   }
+          //   romInfo.data = romData
+          // })
+          // fs.readFile(this.stateDir, [rom.hash, '.state'].join(), (err, romData) => {
+          //   if (err) {
+          //     this.logger.error(err)
+          //   }
+          //   romInfo.data = romData
+          // })
           this.romsMap.push(romInfo)
         }
       })
@@ -229,6 +248,19 @@ class RomStoreService {
   }
 
   destroy() {
+    this.persistStateData()
+  }
+
+  persistStateData() {
+    this.romsMap.forEach((rom) => {
+      if (rom.statePacked) {
+        this.logger.info('Saving state for Rom', rom.hash)
+        fs.writeFile(this.stateDir, [rom.hash, '.state'].join(), (err) => {
+          if (err) throw err
+          console.log('The file has been saved!')
+        })
+      }
+    })
   }
 }
 
