@@ -84,27 +84,34 @@ class RomStoreService {
       },
       'query': (socket, request) => {
         this.logger.info('RomStoreService < query', {socket: socket.id, hash: socket.hash, request: request})
-        var romSelection = this.romsMap.filter(r => r.hash === request)[0]
-        socket.emit('response', {name: romSelection.name, hash: romSelection.hash, emu: romSelection.emu})
-        romSelection.emu = socket.id
-        socket.hash = romSelection.hash
-        this.hashes[romSelection.hash] = socket.id
+        if (request) {
+          var romSelection = this.romsMap.filter(r => r.hash === request)[0]
+          if (romSelection) {
+            socket.emit('response', {name: romSelection.name, hash: romSelection.hash, emu: romSelection.emu})
 
-        if (romSelection.statePacked) {
-          this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`, this.digest(romSelection.statePacked))
-          socket.emit('state', romSelection.statePacked)
-        } else {
-          fs.readFile(romSelection.path, (err, romData) => {
-            if (err) {
-              this.logger.error(err)
+            if (!romSelection.emu) {
+              romSelection.emu = socket.id
+              socket.hash = romSelection.hash
+              this.hashes[romSelection.hash] = socket.id
+
+              if (romSelection.statePacked) {
+                this.logger.info(`RomStoreService > emu:${socket.id}:rom:state`)//, this.digest(romSelection.statePacked))
+                socket.emit('state', romSelection.statePacked)
+              } else {
+                fs.readFile(romSelection.path, (err, romData) => {
+                  if (err) {
+                    this.logger.error(err)
+                  }
+                  this.logger.info(`RomStoreService > emu:${socket.id}:rom:data`)
+                  socket.emit('data', romData)
+                })
+              }
+
+              this.logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
+              socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
             }
-            this.logger.info(`RomStoreService > emu:${socket.id}:rom:data`)
-            socket.emit('data', romData)
-          })
+          }
         }
-
-        this.logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
-        socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
       },
       'request': (socket, request) => {
         this.logger.info('RomStoreService < request', {socket: socket.id, hash: socket.hash, request: request})
@@ -235,14 +242,16 @@ class RomStoreService {
       })
 
       var idx = 1
-      this.romsMap.sort((a, b) => a.name > b.name)
+      this.romsMap.sort((a, b) => a.name > b.name ? 1 : -1)
       this.romsMap.forEach((rom) => {
         if (rom.name !== 'default.gbc') {
           rom.idx = idx++
         }
       })
-      this.romsMap.sort((a, b) => a.idx > b.idx)
-      this.logger.info('Roms loaded', this.romsMap)
+      this.romsMap.sort((a, b) => a.idx > b.idx ? 1 : -1)
+      this.romsMap.forEach((rom) => {
+        this.logger.info('Rom', rom.idx, rom.name)
+      })
       this.logger.info('Default Rom', this.defaultRomHash)
     })
   }
