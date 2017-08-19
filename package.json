@@ -4,9 +4,11 @@
   "description": "",
   "dependencies": {
     "lodash": "^4.17.4",
-    "node-uuid": "^1.4.7",
-    "redis": "^2.7.1",
-    "weplay-common": "github:iromu/weplay-common#develop"
+    "memwatch-next": "^0.3.0",
+    "redis": "^2.8.0",
+    "uuid": "^3.1.0",
+    "weplay-common": "github:iromu/weplay-common#develop",
+    "xml2js": "^0.4.18"
   },
   "scripts": {
     "start": "node index.js",
