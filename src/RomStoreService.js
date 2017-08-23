@@ -152,10 +152,11 @@ class RomStoreService {
       roms.forEach((rom) => {
         var ext = path.extname(rom)
         var basename = path.basename(rom).replace(ext, '')
-        if (basename && !basename.startsWith('.') && ext in {'.gbc': null, '.gb': null}) {
+        if (basename && !basename.startsWith('.') && ext in {'.gbc': null, '.gb': null, '.nes': null}) {
+          const system = ext.substring(1, ext.length)
           var romData = fs.readFileSync(rom)
           var hash = this.digest(romData).toString()
-          var romInfo = {path: rom, hash: hash, emu: null}
+          var romInfo = {path: rom, hash: hash, emu: null, system: system}
           if (basename === DEFAULT_ROM_NAME) {
             this.defaultRomHash = hash
             romInfo.default = true

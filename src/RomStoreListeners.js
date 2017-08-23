@@ -1,6 +1,7 @@
 const join = require('path').join
 const fs = require('fs')
 const logger = require('weplay-common').logger('weplay-romstore', this.uuid)
+const msgpack = require('msgpack')
 
 class RomStoreListeners {
 
@@ -68,7 +69,7 @@ class RomStoreListeners {
           this.bindRomEmu(romSelection, socket)
           this.emitBinDataforRom(romSelection, socket)
           logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
-          socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
+          socket.emit('hash', {name: romSelection.name, hash: romSelection.hash, system: romSelection.system})
         }
       }
     }
@@ -80,11 +81,14 @@ class RomStoreListeners {
     this.bindRomEmu(romSelection, socket)
     this.emitBinDataforRom(romSelection, socket)
     logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
-    socket.emit('hash', {name: romSelection.name, hash: romSelection.hash})
+    socket.emit('hash', {name: romSelection.name, hash: romSelection.hash, system: romSelection.system})
   }
 
-  state(socket, statePacked) {
-    const hash = socket.hash || this.hashesBySocketId[socket.id]
+  state(socket, stateInfoPacked) {
+    const stateInfo = msgpack.unpack(stateInfoPacked)
+    const stateHash = stateInfo.hash
+    const statePacked = stateInfo.snapshot
+    const hash = stateHash || socket.hash || this.hashesBySocketId[socket.id]
     if (hash) {
       logger.info('RomStoreService.onState', {socket: socket.id, hash: hash})
       // Only the active emu can update the state

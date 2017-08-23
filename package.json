@@ -5,6 +5,7 @@
   "dependencies": {
     "lodash": "^4.17.4",
     "memwatch-next": "^0.3.0",
+    "msgpack": "^1.0.2",
     "redis": "^2.8.0",
     "uuid": "^3.1.0",
     "weplay-common": "github:iromu/weplay-common#develop",
