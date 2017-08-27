@@ -1,17 +1,18 @@
-const join = require('path').join
-const path = require('path')
-const fs = require('fs')
-const crypto = require('crypto')
+import path, {join} from 'path'
+import fs from 'fs'
+import crypto from 'crypto'
+import {EventBus, LoggerFactory} from 'weplay-common'
+import Utils from './Utils'
+import RomStoreListeners from './RomStoreListeners'
+import memwatch from 'memwatch-next'
 
-const EventBus = require('weplay-common').EventBus
+process.title = 'weplay-discovery'
 const DEFAULT_ROM_NAME = 'default'
-const logger = require('weplay-common').logger('weplay-romstore', this.uuid)
+const uuid = require('uuid/v1')()
+const logger = LoggerFactory.get('weplay-romstore')
 
-const Utils = require('./Utils')
 const utils = new Utils()
-const RomStoreListeners = require('./RomStoreListeners')
 
-const memwatch = require('memwatch-next')
 memwatch.on('stats', (stats) => {
   logger.info('RomStoreService stats', stats)
 })
@@ -45,13 +46,13 @@ class RomStoreService {
     this.bus = new EventBus({
       url: discoveryUrl,
       port: discoveryPort,
-      statusPort: statusPort,
+      statusPort,
       name: 'rom',
       id: this.uuid,
       serverListeners: listeners
     }, () => {
       logger.info('RomStoreService connected to discovery server', {
-        discoveryUrl: discoveryUrl,
+        discoveryUrl,
         uuid: this.uuid
       })
       this.onConnect()
@@ -102,7 +103,7 @@ class RomStoreService {
   }
 
   unbindRomEmu(socket, hash) {
-    for (var property in this.hashes) {
+    for (const property in this.hashes) {
       if (this.hashes.hasOwnProperty(property)) {
         if (this.hashes[property] === socket.id) {
           this.romsMap.filter(r => r.hash === property)[0].emu = null
@@ -125,7 +126,7 @@ class RomStoreService {
   }
 
   digest(state) {
-    var md5 = crypto.createHash('md5')
+    const md5 = crypto.createHash('md5')
     return md5.update(state).digest('hex')
   }
 
@@ -134,7 +135,7 @@ class RomStoreService {
   }
 
   getRomSelection(emuId) {
-    var romSelection = this.romsMap.filter(r => r.basename === DEFAULT_ROM_NAME && (r.emu === null || r.emu === emuId))[0]
+    let romSelection = this.romsMap.filter(r => r.basename === DEFAULT_ROM_NAME && (r.emu === null || r.emu === emuId))[0]
     if (!romSelection) romSelection = this.romsMap.filter(r => r.emu === null || r.emu === emuId)[0]
     return romSelection
   }
@@ -150,13 +151,13 @@ class RomStoreService {
     utils.recursiveloop(this.romDir, (err, roms) => {
       err && logger.error(err)
       roms.forEach((rom) => {
-        var ext = path.extname(rom)
-        var basename = path.basename(rom).replace(ext, '')
+        const ext = path.extname(rom)
+        const basename = path.basename(rom).replace(ext, '')
         if (basename && !basename.startsWith('.') && ext in {'.gbc': null, '.gb': null, '.nes': null}) {
           const system = ext.substring(1, ext.length)
-          var romData = fs.readFileSync(rom)
-          var hash = this.digest(romData).toString()
-          var romInfo = {path: rom, hash: hash, emu: null, system: system}
+          const romData = fs.readFileSync(rom)
+          const hash = this.digest(romData).toString()
+          const romInfo = {path: rom, hash, emu: null, system}
           if (basename === DEFAULT_ROM_NAME) {
             this.defaultRomHash = hash
             romInfo.default = true
@@ -169,7 +170,7 @@ class RomStoreService {
         }
       })
 
-      var idx = 1
+      let idx = 1
       this.romsMap.sort((a, b) => a.rom > b.rom ? 1 : -1)
       this.romsMap.forEach((rom) => {
         if (!rom.default) {
@@ -202,4 +203,4 @@ class RomStoreService {
   }
 }
 
-module.exports = RomStoreService
+export default RomStoreService

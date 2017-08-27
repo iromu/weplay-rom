@@ -1,18 +1,20 @@
-const fs = require('fs')
-const xml2js = require('xml2js')
-const logger = require('weplay-common').logger('weplay-romstore')
+import fs from 'fs'
+import xml2js from 'xml2js'
+import {LoggerFactory} from 'weplay-common'
+
+const logger = LoggerFactory.get('weplay-romstore')
 
 const parser = new xml2js.Parser({explicitArray: false, trim: true, ignoreAttrs: true, explicitRoot: false})
 
 function _recursiveloop(dir, done) {
-  var results = []
+  let results = []
   fs.readdir(dir, (err, list) => {
     if (err) return done(err)
-    var i = 0;
+    let i = 0;
     (function next() {
-      var file = list[i++]
+      let file = list[i++]
       if (!file) return done(null, results)
-      file = dir + '/' + file
+      file = `${dir}/${file}`
       fs.stat(file, (err, stat) => {
         err && logger.error('recursiveloop', err)
         if (stat && stat.isDirectory()) {
@@ -48,4 +50,4 @@ class Utils {
   }
 }
 
-module.exports = Utils
+export default Utils

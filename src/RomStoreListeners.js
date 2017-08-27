@@ -1,23 +1,24 @@
-const join = require('path').join
-const fs = require('fs')
-const logger = require('weplay-common').logger('weplay-romstore', this.uuid)
-const msgpack = require('msgpack')
+import {join} from 'path'
+import fs from 'fs'
+import msgpack from 'msgpack'
+import {LoggerFactory} from 'weplay-common'
+
+const logger = LoggerFactory.get('weplay-romstore')
 
 class RomStoreListeners {
-
   /** Frees current connection */
   free(socket, request) {
     if (!request || !socket.hash) {
-      logger.error('RomStoreService < free', {socket: socket.id, hash: socket.hash, request: request})
+      logger.error('RomStoreService < free', {socket: socket.id, hash: socket.hash, request})
     } else {
-      logger.info('RomStoreService < free', {socket: socket.id, hash: socket.hash, request: request})
+      logger.info('RomStoreService < free', {socket: socket.id, hash: socket.hash, request})
     }
     this.unbindRomEmu(socket, request)
   }
 
   defaulthash(socket, request) {
-    logger.info('RomStoreService < default:hash', {socket: socket.id, hash: socket.hash, request: request})
-    var romSelection = this.getDefaultRom()
+    logger.info('RomStoreService < default:hash', {socket: socket.id, hash: socket.hash, request})
+    const romSelection = this.getDefaultRom()
     if (romSelection !== undefined) {
       logger.info('default:hash > hash', {
         socket: socket.id,
@@ -29,7 +30,7 @@ class RomStoreListeners {
   }
 
   list(socket, request) {
-    logger.info('RomStoreService < list', {socket: socket.id, hash: socket.hash, request: request})
+    logger.info('RomStoreService < list', {socket: socket.id, hash: socket.hash, request})
     this.romsMap.forEach((romMap) => {
         const info = {idx: romMap.idx, name: romMap.name, hash: romMap.hash}
         logger.info('RomStoreService < info', info)
@@ -39,16 +40,16 @@ class RomStoreListeners {
   }
 
   image(socket, request) {
-    logger.info('RomStoreService < image', {socket: socket.id, hash: socket.hash, request: request})
+    logger.info('RomStoreService < image', {socket: socket.id, hash: socket.hash, request})
     if (request) {
-      var romSelection = this.romsMap.filter(r => r.hash === request)[0]
+      const romSelection = this.romsMap.filter(r => r.hash === request)[0]
       if (romSelection) {
         if (!romSelection.image) {
           fs.readFile(join(this.romDir, 'images', [romSelection.basename, '-image.jpg'].join('')), (err, image) => {
             err && logger.error(err)
             if (image) {
               romSelection.image = image
-              socket.emit('image', {name: romSelection.name, hash: romSelection.hash, image: image})
+              socket.emit('image', {name: romSelection.name, hash: romSelection.hash, image})
             }
           })
         } else {
@@ -59,9 +60,9 @@ class RomStoreListeners {
   }
 
   query(socket, request) {
-    logger.info('RomStoreService < query', {socket: socket.id, hash: socket.hash, request: request})
+    logger.info('RomStoreService < query', {socket: socket.id, hash: socket.hash, request})
     if (request) {
-      var romSelection = this.romsMap.filter(r => r.hash === request)[0]
+      const romSelection = this.romsMap.filter(r => r.hash === request)[0]
       if (romSelection) {
         socket.emit('response', {name: romSelection.name, hash: romSelection.hash, emu: romSelection.emu})
 
@@ -76,8 +77,8 @@ class RomStoreListeners {
   }
 
   request(socket, request) {
-    logger.info('RomStoreService < request', {socket: socket.id, hash: socket.hash, request: request})
-    var romSelection = this.getRomSelection(socket.id)
+    logger.info('RomStoreService < request', {socket: socket.id, hash: socket.hash, request})
+    const romSelection = this.getRomSelection(socket.id)
     this.bindRomEmu(romSelection, socket)
     this.emitBinDataforRom(romSelection, socket)
     logger.info(`RomStoreService > emu:${socket.id}:rom:hash`, romSelection.hash)
@@ -90,7 +91,7 @@ class RomStoreListeners {
     const statePacked = stateInfo.snapshot
     const hash = stateHash || socket.hash || this.hashesBySocketId[socket.id]
     if (hash) {
-      logger.info('RomStoreService.onState', {socket: socket.id, hash: hash})
+      logger.info('RomStoreService.onState', {socket: socket.id, hash})
       // Only the active emu can update the state
       const filter = this.romsMap.filter(r => r.hash === hash && r.emu === socket.id)[0]
       if (filter !== undefined) {
@@ -99,16 +100,16 @@ class RomStoreListeners {
         this.persistStateData()
         delete filter.rom
       } else {
-        logger.error('RomStoreService.onState(no found)', {socket: socket.id, hash: hash})
+        logger.error('RomStoreService.onState(no found)', {socket: socket.id, hash})
       }
     } else {
-      logger.error('RomStoreService.onState (no hash)', {socket: socket.id, hash: hash})
+      logger.error('RomStoreService.onState (no hash)', {socket: socket.id, hash})
     }
   }
 
   disconnect(socket) {
     logger.info('RomStoreService < disconnect', {socket: socket.id, hash: socket.hash})
-    for (var property in this.hashes) {
+    for (const property in this.hashes) {
       if (this.hashes.hasOwnProperty(property)) {
         if (this.hashes[property] === socket.id) {
           this.romsMap.filter(r => r.hash === property)[0].emu = null
@@ -125,4 +126,4 @@ class RomStoreListeners {
   }
 }
 
-module.exports = RomStoreListeners
+export default RomStoreListeners

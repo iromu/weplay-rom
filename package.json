@@ -11,9 +11,16 @@
     "weplay-common": "github:iromu/weplay-common#develop",
     "xml2js": "^0.4.18"
   },
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-preset-es2015": "^6.24.1"
+  },
   "scripts": {
-    "start": "node index.js",
-    "lint": "./node_modules/weplay-common/node_modules/.bin/eslint report ."
+    "start": "node build/index.js",
+    "start:dev": "babel-node src/index.js",
+    "lint": "./node_modules/weplay-common/node_modules/.bin/eslint report .",
+    "build": "babel src -d build",
+    "prepublish": "npm run build"
   },
   "engines": {
     "node": ">=8.0.0"
