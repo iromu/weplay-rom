@@ -5,13 +5,9 @@ import {EventBus, LoggerFactory} from 'weplay-common'
 import Utils from './Utils'
 import RomStoreListeners from './RomStoreListeners'
 import memwatch from 'memwatch-next'
-
-process.title = 'weplay-discovery'
 const DEFAULT_ROM_NAME = 'default'
-const uuid = require('uuid/v1')()
-const logger = LoggerFactory.get('weplay-romstore')
 
-const utils = new Utils()
+const logger = LoggerFactory.get('weplay-romstore')
 
 memwatch.on('stats', (stats) => {
   logger.info('RomStoreService stats', stats)
@@ -142,13 +138,13 @@ class RomStoreService {
 
   loadRoms() {
     this.romsMap = []
-    utils.readXml(join(this.romDir, 'gamelist.xml'), (data) => {
+    Utils.readXml(join(this.romDir, 'gamelist.xml'), (data) => {
       this.gameList = data.game
       // fs.writeFile(join(this.romDir, 'gamelist.json'), JSON.stringify(this.gameList), (err) => {
       //   err && logger.error(err)
       // })
     })
-    utils.recursiveloop(this.romDir, (err, roms) => {
+    Utils.recursiveloop(this.romDir, (err, roms) => {
       err && logger.error(err)
       roms.forEach((rom) => {
         const ext = path.extname(rom)
