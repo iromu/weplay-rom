@@ -1,48 +1,49 @@
-node('node') {
-    currentBuild.result = "SUCCESS"
+pipeline {
+    agent any
 
-    try {
-
-       stage('Checkout'){
-          checkout scm
-       }
+    triggers {
+      upstream(upstreamProjects: "weplay-common/" + env.BRANCH_NAME.replaceAll("/", "%2F"), threshold: hudson.model.Result.SUCCESS)
+    }
+    stages  {
 
         stage('Initialize') {
-          echo 'Initializing...'
-          def node = tool name: 'Node-8.4.0', type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation'
-          env.PATH = "${node}/bin:${env.PATH}"
-          env.NODE_ENV = "test"
-          sh 'node -v'
-          sh 'yarn install'
+          steps {
+            script {
+              def node = tool name: 'Node-8.4.0', type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation'
+              env.PATH = "${node}/bin:${env.PATH}"
+            }
+            sh 'node -v'
+            sh 'yarn install'
+          }
         }
 
        stage('Build'){
-         env.NODE_ENV = "test"
-         sh 'node -v'
-         sh 'yarn build'
+         steps {
+            sh 'yarn build'
+         }
        }
 
        stage('Test'){
-         env.NODE_ENV = "test"
-         sh 'yarn test'
-
+         steps {
+            sh 'yarn plato'
+            sh 'jenkins-mocha --compilers js:babel-register --cobertura test/*.spec.js'
+            junit 'artifacts/test/xunit.xml'
+         }
        }
 
-       stage('Link'){
-         env.NODE_ENV = "test"
-         sh 'yarn link'
+       stage('Archive'){
+         steps {
+            sh 'yarn pack'
+            archiveArtifacts '*.tgz'
+            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'report/plato', reportFiles: 'index.html', reportName: 'Plato Report', reportTitles: ''])
+         }
        }
 
        stage('Cleanup'){
-         echo 'prune and cleanup'
-         sh 'rm node_modules -rf'
-         sh 'rm build -rf'
+         steps {
+            cleanWs()
+         }
        }
 
     }
-    catch (err) {
-        currentBuild.result = "FAILURE"
-        throw err
-    }
-
 }
