@@ -1,10 +1,11 @@
-import path, {join} from 'path'
+import {join} from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
 import {EventBus, LoggerFactory} from 'weplay-common'
-import Utils from './Utils'
 import RomStoreListeners from './RomStoreListeners'
 import memwatch from 'memwatch-next'
+import GameList from './GameList'
+
 const DEFAULT_ROM_NAME = 'default'
 
 const logger = LoggerFactory.get('weplay-romstore')
@@ -21,13 +22,13 @@ class RomStoreService {
     this.uuid = require('uuid/v1')()
     this.hashes = {}
     this.hashesBySocketId = {}
-    this.romsMap = []
     this.defaultRomHash = undefined
     this.romPath = join('data', 'rom')
     this.romDir = join(process.cwd(), this.romPath)
     this.statePath = join('data', 'state')
     this.stateDir = join(process.cwd(), this.statePath)
     const romListeners = new RomStoreListeners()
+    this.gameList = new GameList(DEFAULT_ROM_NAME, this.romDir)
     const listeners = {
       'free': romListeners.free.bind(this),
       'defaulthash': romListeners.defaulthash.bind(this),
@@ -102,7 +103,7 @@ class RomStoreService {
     for (const property in this.hashes) {
       if (this.hashes.hasOwnProperty(property)) {
         if (this.hashes[property] === socket.id) {
-          this.romsMap.filter(r => r.hash === property)[0].emu = null
+          this.gameList.map.filter(r => r.hash === property)[0].emu = null
           delete this.hashes[property]
         }
       }
@@ -118,7 +119,7 @@ class RomStoreService {
   }
 
   onConnect() {
-    this.loadRoms()
+    this.gameList.init()
   }
 
   digest(state) {
@@ -126,59 +127,10 @@ class RomStoreService {
     return md5.update(state).digest('hex')
   }
 
-  getDefaultRom() {
-    return this.romsMap.filter(r => r.basename === DEFAULT_ROM_NAME)[0]
-  }
-
   getRomSelection(emuId) {
-    let romSelection = this.romsMap.filter(r => r.basename === DEFAULT_ROM_NAME && (r.emu === null || r.emu === emuId))[0]
-    if (!romSelection) romSelection = this.romsMap.filter(r => r.emu === null || r.emu === emuId)[0]
+    let romSelection = this.gameList.map.filter(r => r.basename === DEFAULT_ROM_NAME && (r.emu === null || r.emu === emuId))[0]
+    if (!romSelection) romSelection = this.gameList.map.filter(r => r.emu === null || r.emu === emuId)[0]
     return romSelection
-  }
-
-  loadRoms() {
-    this.romsMap = []
-    Utils.readXml(join(this.romDir, 'gamelist.xml'), (data) => {
-      this.gameList = data.game
-      // fs.writeFile(join(this.romDir, 'gamelist.json'), JSON.stringify(this.gameList), (err) => {
-      //   err && logger.error(err)
-      // })
-    })
-    Utils.recursiveloop(this.romDir, (err, roms) => {
-      err && logger.error(err)
-      roms.forEach((rom) => {
-        const ext = path.extname(rom)
-        const basename = path.basename(rom).replace(ext, '')
-        if (basename && !basename.startsWith('.') && ext in {'.gbc': null, '.gb': null, '.nes': null}) {
-          const system = ext.substring(1, ext.length)
-          const romData = fs.readFileSync(rom)
-          const hash = this.digest(romData).toString()
-          const romInfo = {path: rom, hash, emu: null, system}
-          if (basename === DEFAULT_ROM_NAME) {
-            this.defaultRomHash = hash
-            romInfo.default = true
-            romInfo.idx = 0
-          }
-          romInfo.basename = basename
-          const filter = this.gameList.filter(g => g.path.includes(basename))[0]
-          romInfo.name = filter ? filter.name : basename
-          this.romsMap.push(romInfo)
-        }
-      })
-
-      let idx = 1
-      this.romsMap.sort((a, b) => a.rom > b.rom ? 1 : -1)
-      this.romsMap.forEach((rom) => {
-        if (!rom.default) {
-          rom.idx = idx++
-        }
-      })
-      this.romsMap.sort((a, b) => a.idx > b.idx ? 1 : -1)
-      this.romsMap.forEach((rom) => {
-        logger.info('Rom', rom.idx, rom.name)
-      })
-      logger.info('Default Rom', this.defaultRomHash)
-    })
   }
 
   destroy() {
@@ -187,7 +139,7 @@ class RomStoreService {
   }
 
   persistStateData(force) {
-    this.romsMap.forEach((rom) => {
+    this.gameList.map.forEach((rom) => {
       if (rom.statePacked && !rom.statePackedPersisted) {
         logger.info('Saving state for Rom', rom.hash)
         fs.writeFile(join(this.stateDir, [rom.hash, '.state'].join('')), rom.statePacked, (err) => {
