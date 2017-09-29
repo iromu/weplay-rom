@@ -1,4 +1,4 @@
-FROM iromu/weplay-common:arm
+FROM iromu/weplay-common-arm:latest
 
 # Create app directory
 RUN mkdir -p /usr/src/app/rom
