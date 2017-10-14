@@ -38,6 +38,15 @@ pipeline {
          }
        }
 
+      stage('Docker arm'){
+        agent { label 'arm'  }
+        steps {
+            sh 'docker build --no-cache -t iromu/weplay-rom-arm:latest . -f Dockerfile_arm'
+            sh 'docker push iromu/weplay-rom-arm:latest'
+        }
+      }
+
+
        stage('Cleanup'){
          steps {
             cleanWs()
