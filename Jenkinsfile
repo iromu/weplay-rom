@@ -47,6 +47,15 @@ pipeline {
       }
 
 
+      stage('Docker amd64'){
+        agent { label 'docker'  }
+        steps {
+            sh 'docker build --no-cache -t iromu/weplay-rom:latest . -f Dockerfile'
+            sh 'docker push iromu/weplay-rom:latest'
+        }
+      }
+
+
        stage('Cleanup'){
          steps {
             cleanWs()
